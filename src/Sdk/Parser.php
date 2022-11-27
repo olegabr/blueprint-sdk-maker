@@ -1,4 +1,5 @@
 <?php
+
 namespace BlueprintSdkMaker;
 
 use PhpParser\PrettyPrinter\Standard;
@@ -158,8 +159,8 @@ class Parser
                 if ($entity['element'] == 'category') {
                     $className = ucwords($this->getNode($entity['meta']['title']));
                     $className = str_replace(' ', '', $className);
-                    $class = $this->setClass($className, $this->getNamespace().'\\'.$this->getEntityFolder());
-                    $class->extend('\\'.$this->getNamespace().'\\'.$this->getCoreFolder().'\\Request');
+                    $class = $this->setClass($className, $this->getNamespace() . '\\' . $this->getEntityFolder());
+                    $class->extend('\\' . $this->getNamespace() . '\\' . $this->getCoreFolder() . '\\Request');
                     foreach ($entity['content'] as $endpoint) {
                         $endpointName = ucwords($this->getNode($endpoint['meta']['title']));
                         $endpointName = lcfirst($endpointName);
@@ -178,7 +179,7 @@ class Parser
                             $httpVerb = 'get';
                         }
                         $method->addStmts($Parser->parse(
-                            '<?php $method = \''.strtolower($this->getNode($httpVerb)).'\';'
+                            '<?php $method = \'' . strtolower($this->getNode($httpVerb)) . '\';'
                         ));
                         if (isset($endpoint['content'][0]['attributes']['hrefVariables']['content'])) {
                             $args = $endpoint['content'][0]['attributes']['hrefVariables']['content'];
@@ -192,11 +193,11 @@ class Parser
                             $endpointParam = $factory->param($arg['content']['key']['content']);
                             if (isset($arg['meta']['title'])) {
                                 $endpointParam->setTypeHint($this->getNode($arg['meta']['title']));
-                                $docParam.= ' '.$this->getNode($arg['meta']['title']);
+                                $docParam .= ' ' . $this->getNode($arg['meta']['title']);
                             }
                             $typeAttribytes = $this->getNode($arg['attributes']['typeAttributes']);
                             if ($this->getNode($typeAttribytes[0]) != 'required') {
-                                $docParam.= ' (optional)';
+                                $docParam .= ' (optional)';
                                 $endpointParam->setDefault(null);
                             }
                             if (isset($arg['meta']['description'])) {
@@ -210,7 +211,7 @@ class Parser
                         $url = parse_url($url);
                         $url = $url['path'];
                         $code = [];
-                        $code[]= '$path = "'.$url.'";';
+                        $code[] = '$path = "' . $url . '";';
                         $hasOptional = false;
                         if (isset($endpoint['content'][0]['attributes']['hrefVariables']['content'])) {
                             foreach ($endpoint['content'][0]['attributes']['hrefVariables']['content'] as $arg) {
@@ -219,33 +220,33 @@ class Parser
                                     $type = $this->getNode($arg['meta']['title']);
                                     if ($type == 'boolean') {
                                         $code[] =
-                                        "if(\$$name == 'true' || \$$name == '1'){".
-                                        "$$name = true;".
-                                        "} else { $$name = false; }";
+                                            "if(\$$name == 'true' || \$$name == '1'){" .
+                                            "$$name = true;" .
+                                            "} else { $$name = false; }";
                                     }
                                 }
                                 $typeAttribytes = $this->getNode($arg['attributes']['typeAttributes']);
                                 if ($this->getNode($typeAttribytes[0]) != 'required') {
                                     $hasOptional = true;
-                                    $code[]=
-                                    "if(!is_null(\$$name)) {".
-                                        "\$params['$name'] = \$$name;".
-                                    "}";
+                                    $code[] =
+                                        "if(!is_null(\$$name)) {" .
+                                        "\$params['$name'] = \$$name;" .
+                                        "}";
                                 }
                             }
                             if ($hasOptional) {
-                                $code[]= '$path.= \'?\'.http_build_query($params);';
+                                $code[] = '$path.= \'?\'.http_build_query($params);';
                             }
                         }
-                        $method->addStmts($Parser->parse('<?php '.implode("\n", $code)));
+                        $method->addStmts($Parser->parse('<?php ' . implode("\n", $code)));
 
                         $method->addStmts($Parser->parse('<?php return self::request($method, $path);'));
                         $methodDescription[] = '@return Array|Exception array';
                         $method->setDocComment(
-                            "/**\n".
-                            "     * ".
-                            implode("\n     * ", $methodDescription).
-                            "\n     */"
+                            "/**\n" .
+                                "     * " .
+                                implode("\n     * ", $methodDescription) .
+                                "\n     */"
                         );
                         $method->setReturnType('array');
                         $class
@@ -268,26 +269,31 @@ class Parser
     {
         $factory = $this->getBuilderFactory();
         $Parser = $this->getParser();
-        $class = $this->setClass('Api', $this->getNamespace().'\\'.$this->getCoreFolder());
+        $class = $this->setClass('Api', $this->getNamespace() . '\\' . $this->getCoreFolder());
         $constructor = $factory->method('__construct')
             ->makePublic();
         if (isset($node['content'])) {
             foreach ($node['content'] as $endpoint) {
                 if ($endpoint['element'] == 'category') {
+                    if (!isset($endpoint['meta']['title'])) {
+                        error_log('empty title for endpoint meta');
+                        print_r($endpoint['meta']);
+                        continue;
+                    }
                     $propertyName = ucwords($this->getNode($endpoint['meta']['title']));
                     $propertyName = str_replace(' ', '', $propertyName);
                     $constructor->addStmts($Parser->parse(
-                        '<?php $this->'.$propertyName.' = new \\'.$this->getNamespace().'\\'.$this->getEntityFolder().'\\'.$propertyName.'($this->host);'
+                        '<?php $this->' . $propertyName . ' = new \\' . $this->getNamespace() . '\\' . $this->getEntityFolder() . '\\' . $propertyName . '($this->host);'
                     ));
                     $class
                         ->addStmt($factory
-                        ->property($propertyName)
-                        ->setDocComment(
-                            "/**
+                            ->property($propertyName)
+                            ->setDocComment(
+                                "/**
                              * $propertyName
                             * @var \\{$this->getNamespace()}\\{$this->getEntityFolder()}\\$propertyName
                              */"
-                        ));
+                            ));
                 }
             }
         }
@@ -376,16 +382,16 @@ class Request
 }
 ";
         $tmp = $Parser->parse($content)[0];
-        $class = $this->setClass($tmp->name, $this->getNamespace().'\\'.$this->getCoreFolder());
+        $class = $this->setClass($tmp->name, $this->getNamespace() . '\\' . $this->getCoreFolder());
         $class->addStmts($tmp->stmts);
     }
 
     private function formatRequestClassOutput($string)
     {
         if ($this->format == 'json-array') {
-            $return = 'json_decode('.$string.', true)';
+            $return = 'json_decode(' . $string . ', true)';
         } elseif ($this->format == 'json-object') {
-            $return = 'json_decode('.$string.')';
+            $return = 'json_decode(' . $string . ')';
         } else {
             $return = $string;
         }
@@ -410,14 +416,14 @@ class Request
                     $class['namespace']
                 );
                 $dir = str_replace('\\', DIRECTORY_SEPARATOR, $dir);
-                $dir = $this->output_directory.$dir.DIRECTORY_SEPARATOR;
-                $dir = str_replace(DIRECTORY_SEPARATOR.DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $dir);
+                $dir = $this->output_directory . $dir . DIRECTORY_SEPARATOR;
+                $dir = str_replace(DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $dir);
                 if (!is_dir($dir)) {
                     mkdir($dir);
                 }
                 file_put_contents(
-                    $return[] = $dir.$name.'.php',
-                    $prettyPrinter->prettyPrintFile([$file->getNode()])."\n\n"
+                    $return[] = $dir . $name . '.php',
+                    $prettyPrinter->prettyPrintFile([$file->getNode()]) . "\n\n"
                 );
             }
         }
